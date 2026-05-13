@@ -7,6 +7,7 @@ import subprocess
 import sqlite3
 from typing import Iterable
 
+from .metrics import compute_node_metrics
 from .parser import ParsedNote, as_list, label_from_wikilink, parse_note
 
 METADATA_RELATIONS = {
@@ -43,6 +44,8 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
         DROP TABLE IF EXISTS note_fts;
+        DROP TABLE IF EXISTS graph_meta;
+        DROP TABLE IF EXISTS node_metrics;
         DROP TABLE IF EXISTS edges;
         DROP TABLE IF EXISTS nodes;
         DROP TABLE IF EXISTS notes;
@@ -74,6 +77,23 @@ def init_db(conn: sqlite3.Connection) -> None:
             provenance TEXT NOT NULL,
             confidence REAL NOT NULL DEFAULT 1.0,
             PRIMARY KEY (source_id, target_id, relation, provenance)
+        );
+
+        CREATE TABLE node_metrics (
+            node_id TEXT PRIMARY KEY,
+            degree INTEGER NOT NULL DEFAULT 0,
+            in_degree INTEGER NOT NULL DEFAULT 0,
+            out_degree INTEGER NOT NULL DEFAULT 0,
+            degree_centrality REAL NOT NULL DEFAULT 0.0,
+            pagerank REAL NOT NULL DEFAULT 0.0,
+            component_id INTEGER NOT NULL DEFAULT 0,
+            component_size INTEGER NOT NULL DEFAULT 1,
+            backend TEXT NOT NULL DEFAULT 'fallback'
+        );
+
+        CREATE TABLE graph_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
         );
 
         CREATE VIRTUAL TABLE note_fts USING fts5(
@@ -223,11 +243,14 @@ def build_database(
                     " ".join(note.wikilinks),
                 ),
             )
+        metrics_summary = refresh_node_metrics(conn)
         conn.commit()
         return {
             "notes": len(notes),
             "nodes": conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0],
             "edges": conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0],
+            "node_metrics": metrics_summary["node_metrics"],
+            "metrics_backend": metrics_summary["metrics_backend"],
         }
     finally:
         conn.close()
@@ -260,3 +283,44 @@ def add_wikilink_edges(
         upsert_node(conn, target_id, kind, label)
         if target_id != source_id:
             insert_edge(conn, source_id, target_id, "links_to", "body.wikilink")
+
+
+def refresh_node_metrics(conn: sqlite3.Connection) -> dict[str, int | str]:
+    nodes = [dict(row) for row in conn.execute("SELECT id, kind, label FROM nodes ORDER BY id")]
+    edges = [
+        dict(row)
+        for row in conn.execute(
+            "SELECT source_id, target_id, relation, provenance, confidence FROM edges ORDER BY source_id, target_id, relation, provenance"
+        )
+    ]
+    computed = compute_node_metrics(nodes, edges)
+    conn.execute("DELETE FROM node_metrics")
+    for node_id, metric in computed["metrics"].items():
+        conn.execute(
+            """
+            INSERT INTO node_metrics(
+                node_id, degree, in_degree, out_degree, degree_centrality, pagerank,
+                component_id, component_size, backend
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                node_id,
+                metric["degree"],
+                metric["in_degree"],
+                metric["out_degree"],
+                metric["degree_centrality"],
+                metric["pagerank"],
+                metric["component_id"],
+                metric["component_size"],
+                metric["backend"],
+            ),
+        )
+    conn.execute(
+        "INSERT OR REPLACE INTO graph_meta(key, value) VALUES ('metrics_backend', ?)",
+        (computed["backend"],),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO graph_meta(key, value) VALUES ('networkx_available', ?)",
+        ("true" if computed["available"] else "false",),
+    )
+    return {"node_metrics": len(computed["metrics"]), "metrics_backend": computed["backend"]}

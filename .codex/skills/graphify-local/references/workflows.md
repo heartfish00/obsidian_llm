@@ -2,15 +2,17 @@
 
 ## Status first
 
-Run `scripts/graphify_status.py` before querying when DB freshness or existence is uncertain.
+Run `scripts/graphify_status.py` before querying when DB freshness, metric availability, or existence is uncertain.
 
 ## Rebuild
 
-Use rebuild only when the user asks to build/rebuild/preprocess/update the graph DB, or when the default DB is missing. Full rebuild may take minutes. Use `--limit N` for quick partial validation.
+Use rebuild only when the user asks to build/rebuild/preprocess/update the graph DB, when `node_metrics`/`graph_meta` are missing after a code upgrade, or when the default DB is missing. Full rebuild may take minutes. Use `--limit N` for quick partial validation.
+
+Rebuild computes node metrics. If `networkx` is installed, Graphify uses NetworkX; otherwise it stores fallback degree/component metrics so query still works offline.
 
 ## Query
 
-Use query when the user asks to find notes, create a graph, or return an HTML path. Prefer `--hops 2` for exploration unless the user asks for a smaller graph. Return the HTML path plus the top note titles if useful.
+Use query when the user asks to find notes, create a graph, or return an HTML path. Prefer `--hops 2` for exploration unless the user asks for a smaller graph. Return the HTML path plus the top note titles if useful. Query outputs include metric-enriched `graph.nodes[].metrics` and the metrics backend in `query-result.md`.
 
 Add `--search-x` when the user asks for Search X/X/Twitter/trends/realtime social context. Search X uses xAI Responses API `x_search` and requires `XAI_API_KEY` in the shell environment or repo root `.env`. Missing keys are recorded as `missing_api_key` in the generated result files, so the local graph query still completes.
 

@@ -1,6 +1,6 @@
 ---
 name: graphify-local
-description: Build, inspect, and query the local Graphify-style Obsidian metadata graph database. Use when Codex needs to rebuild/preprocess the vault graph DB, check graph DB status, search the Obsidian vault, optionally augment results with xAI Search X, and return generated graph.html, graph.json, query-result.md, or query-result.json paths using the graphify local CLI.
+description: Build, inspect, and query the local Graphify-style Obsidian metadata graph database with optional NetworkX graph metrics and optional xAI Search X augmentation. Use when Codex needs to rebuild/preprocess the vault graph DB, check graph DB/metric status, search the Obsidian vault, optionally augment results with X/Twitter context, and return generated graph.html, graph.json, query-result.md, or query-result.json paths using the graphify local CLI.
 ---
 
 # Graphify Local
@@ -12,9 +12,9 @@ Use this skill to operate the vault-local metadata graph tool under `graphify/`.
 1. Read `references/paths.md` when path defaults are needed.
 2. Read `references/workflows.md` when deciding between status, rebuild, and query.
 3. Use bundled scripts instead of rewriting shell commands:
-   - `scripts/graphify_status.py` checks DB existence, size, mtime, and counts.
-   - `scripts/graphify_build.py` rebuilds the SQLite/FTS DB.
-   - `scripts/graphify_query.py` queries the DB, optionally calls xAI Responses API `x_search`, and prints output paths.
+   - `scripts/graphify_status.py` checks DB existence, size, mtime, counts, and metrics backend.
+   - `scripts/graphify_build.py` rebuilds the SQLite/FTS DB and node metrics.
+   - `scripts/graphify_query.py` queries the DB, optionally calls xAI Responses API `x_search`, and prints output paths with metric-enriched graph JSON/HTML/Markdown.
 
 ## Decision rules
 
@@ -26,6 +26,8 @@ Use this skill to operate the vault-local metadata graph tool under `graphify/`.
 - Use `--limit N` only for tests, quick validation, or when the user asks for partial preprocessing.
 - Use `--hops 2` by default for exploration; use `--hops 1` only for a smaller/noise-controlled graph.
 - Search X requires `XAI_API_KEY` in the shell environment or repo root `.env`; if the key is missing the tool records `missing_api_key` in outputs instead of failing the local query.
+- Build persists `node_metrics` and `graph_meta`; query outputs include `graph.nodes[].metrics`.
+- NetworkX is optional: when installed, metrics backend is `networkx`; otherwise Graphify uses deterministic fallback metrics and still works offline.
 - Keep generated outputs under `graphify/output/`; never stage DB or real-vault output files.
 
 ## Commands
@@ -70,4 +72,4 @@ For query tasks, return:
 - Search X status and top citations when `--search-x` was used
 - whether the DB was reused or rebuilt
 
-For rebuild tasks, return notes/nodes/edges counts and DB path.
+For rebuild tasks, return notes/nodes/edges counts and DB path. Also report `node_metrics` count and `metrics_backend` (`networkx` or `fallback`) when available.

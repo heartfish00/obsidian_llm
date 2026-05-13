@@ -33,12 +33,29 @@ class GraphifyLocalTests(unittest.TestCase):
         self.assertEqual(self.stats["notes"], 3)
         self.assertGreaterEqual(self.stats["nodes"], 8)
         self.assertGreaterEqual(self.stats["edges"], 12)
+        self.assertEqual(self.stats["node_metrics"], self.stats["nodes"])
+        self.assertIn(self.stats["metrics_backend"], {"networkx", "fallback"})
         provenance = {
             row[0]
             for row in self.conn.execute("SELECT DISTINCT provenance FROM edges")
         }
         self.assertIn("frontmatter.topics", provenance)
         self.assertIn("body.wikilink", provenance)
+
+    def test_build_database_persists_graph_metrics(self) -> None:
+        row = self.conn.execute(
+            """
+            SELECT node_metrics.degree, node_metrics.component_size, node_metrics.backend
+            FROM node_metrics
+            JOIN nodes ON nodes.id = node_metrics.node_id
+            WHERE nodes.label = ?
+            """,
+            ("RAG 평가",),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertGreater(row["degree"], 0)
+        self.assertGreaterEqual(row["component_size"], 1)
+        self.assertIn(row["backend"], {"networkx", "fallback"})
 
     def test_search_uses_fts_and_returns_ranked_notes(self) -> None:
         results = search_notes(self.conn, "RAG 평가", limit=3)
@@ -52,6 +69,33 @@ class GraphifyLocalTests(unittest.TestCase):
         self.assertEqual(two["graph"]["hops"], 2)
         self.assertGreaterEqual(len(two["graph"]["nodes"]), len(one["graph"]["nodes"]))
         self.assertTrue(all("provenance" in edge for edge in two["graph"]["edges"]))
+        self.assertIn(two["graph"]["metrics"]["backend"], {"networkx", "fallback"})
+        self.assertTrue(all("metrics" in node for node in two["graph"]["nodes"]))
+        self.assertTrue(all("display" in node for node in two["graph"]["nodes"]))
+        self.assertTrue(all("score" in node["display"] for node in two["graph"]["nodes"]))
+
+    def test_query_graph_marks_knowledge_nodes_visible_by_default(self) -> None:
+        payload = query_graph(self.conn, "RAG 평가", limit=1, hops=1)
+        by_kind = {node["kind"]: node for node in payload["graph"]["nodes"]}
+        self.assertTrue(by_kind["note"]["display"]["visible_by_default"])
+        self.assertTrue(by_kind["topic"]["display"]["visible_by_default"])
+        self.assertTrue(by_kind["type"]["display"]["visible_by_default"])
+        self.assertTrue(by_kind["index"]["display"]["visible_by_default"])
+        self.assertFalse(by_kind["date"]["display"]["visible_by_default"])
+        visible_ranks = [
+            node["display"]["rank"]
+            for node in payload["graph"]["nodes"]
+            if node["display"]["visible_by_default"]
+        ]
+        self.assertTrue(all(isinstance(rank, int) for rank in visible_ranks))
+
+    def test_query_graph_handles_legacy_db_without_metrics_tables(self) -> None:
+        self.conn.execute("DROP TABLE node_metrics")
+        self.conn.execute("DROP TABLE graph_meta")
+        payload = query_graph(self.conn, "RAG 평가", limit=1, hops=1)
+        self.assertEqual(payload["graph"]["metrics"]["backend"], "unavailable")
+        self.assertTrue(payload["graph"]["nodes"])
+        self.assertTrue(all(node["metrics"]["backend"] == "unavailable" for node in payload["graph"]["nodes"]))
 
     def test_exports_markdown_json_and_html(self) -> None:
         payload = query_graph(self.conn, "graph", limit=2, hops=2)
@@ -64,7 +108,13 @@ class GraphifyLocalTests(unittest.TestCase):
         self.assertTrue((out / "query-result.json").exists())
         self.assertTrue((out / "graph.json").exists())
         self.assertTrue((out / "query-result.md").read_text(encoding="utf-8").startswith("# Query Result"))
-        self.assertIn("Graphify Local", (out / "graph.html").read_text(encoding="utf-8"))
+        self.assertIn("Metrics backend", (out / "query-result.md").read_text(encoding="utf-8"))
+        html = (out / "graph.html").read_text(encoding="utf-8")
+        self.assertIn("Graphify Local", html)
+        self.assertIn("hub-focused knowledge graph", html)
+        self.assertIn("nodeSearch", html)
+        self.assertIn("kindFilters", html)
+        self.assertIn("Selected Node", html)
         parsed = json.loads((out / "graph.json").read_text(encoding="utf-8"))
         self.assertIn("nodes", parsed)
         self.assertIn("edges", parsed)

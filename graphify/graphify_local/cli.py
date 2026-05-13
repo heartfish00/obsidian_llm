@@ -11,7 +11,10 @@ from .search_x import attach_x_search_context, search_x_posts, split_handles
 
 def cmd_build(args: argparse.Namespace) -> None:
     stats = build_database(Path(args.vault), Path(args.db), limit=args.limit, exclude_dirs=args.exclude_dir)
-    print(f"built db={args.db} notes={stats['notes']} nodes={stats['nodes']} edges={stats['edges']}")
+    print(
+        f"built db={args.db} notes={stats['notes']} nodes={stats['nodes']} edges={stats['edges']} "
+        f"node_metrics={stats['node_metrics']} metrics_backend={stats['metrics_backend']}"
+    )
 
 
 def cmd_query(args: argparse.Namespace) -> None:

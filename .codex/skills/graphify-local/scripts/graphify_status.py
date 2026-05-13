@@ -22,8 +22,20 @@ def main() -> int:
     print(f'modified: {datetime.fromtimestamp(db.stat().st_mtime).isoformat(timespec="seconds")}')
     conn = sqlite3.connect(db)
     try:
-        for table in ('notes', 'nodes', 'edges'):
-            print(f'{table}: {conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]}')
+        for table in ('notes', 'nodes', 'edges', 'node_metrics'):
+            try:
+                count = conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                print(f'{table}: {count}')
+            except sqlite3.OperationalError:
+                print(f'{table}: missing')
+        try:
+            rows = conn.execute(
+                "SELECT key, value FROM graph_meta WHERE key IN ('metrics_backend', 'networkx_available') ORDER BY key"
+            ).fetchall()
+            for key, value in rows:
+                print(f'{key}: {value}')
+        except sqlite3.OperationalError:
+            print('graph_meta: missing')
     finally:
         conn.close()
     return 0

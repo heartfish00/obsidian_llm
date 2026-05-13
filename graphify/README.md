@@ -6,6 +6,12 @@
 
 DB는 전처리된 로컬 인덱스임. 쿼리할 때 매번 Markdown 전체를 읽지 않고, 먼저 Markdown/frontmatter/wikilink를 SQLite + FTS5에 색인한 뒤 쿼리 시 부분 그래프와 컨텍스트 파일을 생성함. `--search-x`를 지정하면 같은 쿼리를 xAI `x_search` 도구에도 보내고, 응답 요약/citation URL을 `x_search`, `x_post` 외부 노드와 `xai.responses.x_search` provenance edge로 추가함.
 
+## NetworkX 그래프 메트릭
+
+빌드 단계에서 `nodes`/`edges`를 기반으로 `node_metrics`와 `graph_meta`를 함께 생성함. `networkx`가 설치되어 있으면 NetworkX PageRank/degree centrality/connected component 계산을 사용하고, 설치되어 있지 않으면 로컬 fallback으로 degree와 component 정보를 계산함. 따라서 기본 MVP는 추가 의존성 없이 동작하지만, 더 정교한 그래프 메트릭이 필요하면 실행 환경에 `networkx`를 설치하면 됨.
+
+쿼리 결과의 `graph.nodes[].metrics`에는 `degree`, `in_degree`, `out_degree`, `degree_centrality`, `pagerank`, `component_id`, `component_size`, `backend`가 포함됨. `query-result.md`와 `graph.html`에도 주요 메트릭이 노출됨.
+
 ## 빠른 검증
 
 ```bash
@@ -73,6 +79,7 @@ PYTHONPATH=graphify python3 -m graphify_local.cli query \
 - `graph.html`: 외부 CDN 없이 열 수 있는 정적 HTML 그래프임
 - `query-result.md`: 사람/LLM 컨텍스트용 Markdown 결과임
 - `query-result.json`: 자동화/MCP 연동용 구조화 결과임
+- `graph.nodes[].metrics`: NetworkX 또는 fallback 기반 노드 메트릭임
 
 ## Git 관리
 

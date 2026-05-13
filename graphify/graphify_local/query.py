@@ -4,6 +4,8 @@ from collections import deque
 import sqlite3
 from typing import Any
 
+DEFAULT_VISIBLE_KINDS = {"note", "note_ref", "topic", "type", "index"}
+
 
 def quote_fts_query(query: str) -> str:
     tokens = [token.strip().replace('"', '') for token in query.split() if token.strip()]
@@ -71,24 +73,98 @@ def build_subgraph(conn: sqlite3.Connection, seed_note_ids: list[str], hops: int
                     seen_nodes.add(candidate)
                     queue.append((candidate, depth + 1))
 
-    node_rows = conn.execute(
-        f"SELECT id, kind, label FROM nodes WHERE id IN ({','.join('?' for _ in seen_nodes)})",
-        tuple(seen_nodes),
-    ).fetchall() if seen_nodes else []
+    if seen_nodes and table_exists(conn, "node_metrics"):
+        node_rows = conn.execute(
+            f"""
+            SELECT nodes.id, nodes.kind, nodes.label,
+                   node_metrics.degree, node_metrics.in_degree, node_metrics.out_degree,
+                   node_metrics.degree_centrality, node_metrics.pagerank,
+                   node_metrics.component_id, node_metrics.component_size,
+                   node_metrics.backend AS metrics_backend
+            FROM nodes
+            LEFT JOIN node_metrics ON node_metrics.node_id = nodes.id
+            WHERE nodes.id IN ({','.join('?' for _ in seen_nodes)})
+            """,
+            tuple(seen_nodes),
+        ).fetchall()
+    elif seen_nodes:
+        node_rows = conn.execute(
+            f"SELECT id, kind, label FROM nodes WHERE id IN ({','.join('?' for _ in seen_nodes)})",
+            tuple(seen_nodes),
+        ).fetchall()
+    else:
+        node_rows = []
     nodes = []
     for row in node_rows:
         node = dict(row)
         node["seed"] = row["id"] in seed_note_ids
+        node["metrics"] = {
+            "degree": node.pop("degree", 0) or 0,
+            "in_degree": node.pop("in_degree", 0) or 0,
+            "out_degree": node.pop("out_degree", 0) or 0,
+            "degree_centrality": node.pop("degree_centrality", 0.0) or 0.0,
+            "pagerank": node.pop("pagerank", 0.0) or 0.0,
+            "component_id": node.pop("component_id", 0) or 0,
+            "component_size": node.pop("component_size", 1) or 1,
+            "backend": node.pop("metrics_backend", "unavailable") or "unavailable",
+        }
         nodes.append(node)
+    apply_display_metadata(nodes)
     edges = [
         {"source": source, "target": target, "relation": relation, "provenance": provenance, "confidence": confidence}
         for source, target, relation, provenance, confidence in sorted(seen_edges)
         if source in seen_nodes and target in seen_nodes
     ]
-    return {"nodes": nodes, "edges": edges, "seed_note_ids": seed_note_ids, "hops": hops}
+    return {"nodes": nodes, "edges": edges, "seed_note_ids": seed_note_ids, "hops": hops, "metrics": graph_metrics_info(conn)}
+
+
+def apply_display_metadata(nodes: list[dict[str, Any]]) -> None:
+    visible_nodes = [
+        node
+        for node in nodes
+        if bool(node.get("seed")) or node.get("kind") in DEFAULT_VISIBLE_KINDS
+    ]
+    ranked_nodes = sorted(visible_nodes, key=lambda node: (-display_score(node), node["kind"], node["label"], node["id"]))
+    rank_by_id = {node["id"]: idx for idx, node in enumerate(ranked_nodes, 1)}
+    for node in nodes:
+        visible_by_default = bool(node.get("seed")) or node.get("kind") in DEFAULT_VISIBLE_KINDS
+        node["display"] = {
+            "score": display_score(node),
+            "visible_by_default": visible_by_default,
+            "rank": rank_by_id[node["id"]] if visible_by_default else None,
+            "reason": "seed" if node.get("seed") else ("knowledge-node" if visible_by_default else "metadata-hidden"),
+        }
+
+
+def display_score(node: dict[str, Any]) -> float:
+    metrics = node.get("metrics", {})
+    pagerank = float(metrics.get("pagerank", 0.0) or 0.0)
+    if pagerank > 0:
+        return pagerank
+    centrality = float(metrics.get("degree_centrality", 0.0) or 0.0)
+    if centrality > 0:
+        return centrality
+    return float(metrics.get("degree", 0) or 0)
 
 
 def query_graph(conn: sqlite3.Connection, query: str, limit: int = 10, hops: int = 1) -> dict[str, Any]:
     results = search_notes(conn, query, limit=limit)
     subgraph = build_subgraph(conn, [row["note_id"] for row in results], hops=hops)
     return {"query": query, "results": results, "graph": subgraph}
+
+
+def graph_metrics_info(conn: sqlite3.Connection) -> dict[str, Any]:
+    try:
+        rows = conn.execute("SELECT key, value FROM graph_meta WHERE key IN ('metrics_backend', 'networkx_available')").fetchall()
+    except sqlite3.OperationalError:
+        return {"backend": "unavailable", "networkx_available": False}
+    values = {row["key"]: row["value"] for row in rows}
+    return {
+        "backend": values.get("metrics_backend", "unavailable"),
+        "networkx_available": values.get("networkx_available") == "true",
+    }
+
+
+def table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,)).fetchone()
+    return row is not None
