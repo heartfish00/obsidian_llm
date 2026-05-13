@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graphify Local"
+  short_description: "Build and query local Obsidian graph DB"
+  default_prompt: "Use $graphify-local to rebuild the local Obsidian graph database or query it for a graph.html path."
