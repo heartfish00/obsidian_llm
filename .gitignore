@@ -25,3 +25,9 @@ __pycache__/
 # OMC local state
 .omc/
 .omx/
+
+# Graphify generated local outputs
+*.sqlite
+*.sqlite3
+graphify/output/
+graphify/demo/*.sqlite

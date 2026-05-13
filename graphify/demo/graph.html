@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Graphify Local</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 0; background: #111827; color: #f9fafb; }
+header { padding: 16px 20px; border-bottom: 1px solid #374151; }
+#wrap { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 70px); }
+svg { width: 100%; height: 100%; background: radial-gradient(circle at center, #1f2937, #030712); }
+aside { overflow: auto; padding: 16px; border-left: 1px solid #374151; background: #0f172a; }
+.node { cursor: pointer; }
+.edge { stroke: #6b7280; stroke-opacity: .65; }
+.label { fill: #f9fafb; font-size: 12px; pointer-events: none; }
+.card { padding: 8px; margin: 6px 0; border: 1px solid #374151; border-radius: 8px; }
+</style>
+</head>
+<body>
+<header><strong>Graphify Local</strong> — metadata/wikilink graph</header>
+<div id="wrap"><svg id="graph"></svg><aside><h2>Nodes</h2><div id="nodes"></div></aside></div>
+<script id="graph-data" type="application/json">{"query": "RAG 평가", "results": [{"note_id": "note:2026-05-13-rag-evaluation.md", "title": "RAG 평가", "path": "2026-05-13-rag-evaluation.md", "summary": "- 🔹 RAG 평가 기준을 정리함\n- 🔸 그래프 기반 탐색과 연결됨", "score": -2.71544659040648e-06}, {"note_id": "note:knowledge-graph-design.md", "title": "Knowledge Graph 설계", "path": "knowledge-graph-design.md", "summary": "- 🔹 메타데이터 기반 그래프 설계임\n- 🔸 LLM과 임베딩을 제외함", "score": -1.9671532846715327e-06}], "graph": {"nodes": [{"id": "author:테디노트 teddynote 이경록", "kind": "author", "label": "테디노트 teddynote 이경록", "seed": false}, {"id": "date:2026-05-13", "kind": "date", "label": "2026-05-13", "seed": false}, {"id": "index:🏷️ 사이드 프로젝트", "kind": "index", "label": "🏷️ 사이드 프로젝트", "seed": false}, {"id": "index:🏷️ 스터디", "kind": "index", "label": "🏷️ 스터디", "seed": false}, {"id": "note:2026-05-13-rag-evaluation.md", "kind": "note", "label": "RAG 평가", "seed": true}, {"id": "note:knowledge-graph-design.md", "kind": "note", "label": "Knowledge Graph 설계", "seed": true}, {"id": "note:search-ux.md", "kind": "note", "label": "검색 UX", "seed": false}, {"id": "status:completed", "kind": "status", "label": "completed", "seed": false}, {"id": "status:inprogress", "kind": "status", "label": "inprogress", "seed": false}, {"id": "status:review", "kind": "status", "label": "review", "seed": false}, {"id": "tag:evaluation", "kind": "tag", "label": "evaluation", "seed": false}, {"id": "tag:graph", "kind": "tag", "label": "graph", "seed": false}, {"id": "tag:obsidian", "kind": "tag", "label": "Obsidian", "seed": false}, {"id": "tag:rag", "kind": "tag", "label": "RAG", "seed": false}, {"id": "tag:search", "kind": "tag", "label": "search", "seed": false}, {"id": "topic:📚 209 knowledge graph", "kind": "topic", "label": "📚 209 Knowledge Graph", "seed": false}, {"id": "topic:📚 210 hybrid search", "kind": "topic", "label": "📚 210 Hybrid Search", "seed": false}, {"id": "topic:📚 211 evaluation", "kind": "topic", "label": "📚 211 Evaluation", "seed": false}, {"id": "type:concept", "kind": "type", "label": "concept", "seed": false}, {"id": "type:guide", "kind": "type", "label": "guide", "seed": false}, {"id": "type:project", "kind": "type", "label": "project", "seed": false}], "edges": [{"source": "note:2026-05-13-rag-evaluation.md", "target": "author:테디노트 teddynote 이경록", "relation": "authored_by", "provenance": "frontmatter.author", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "date:2026-05-13", "relation": "has_date", "provenance": "frontmatter.date", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "index:🏷️ 스터디", "relation": "indexed_under", "provenance": "frontmatter.index", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "note:knowledge-graph-design.md", "relation": "links_to", "provenance": "body.wikilink", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "note:search-ux.md", "relation": "links_to", "provenance": "body.wikilink", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "status:inprogress", "relation": "has_status", "provenance": "frontmatter.status", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "tag:evaluation", "relation": "has_tag", "provenance": "frontmatter.tags", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "tag:rag", "relation": "has_tag", "provenance": "frontmatter.tags", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "topic:📚 209 knowledge graph", "relation": "has_topic", "provenance": "frontmatter.topics", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "topic:📚 211 evaluation", "relation": "has_topic", "provenance": "frontmatter.topics", "confidence": 1.0}, {"source": "note:2026-05-13-rag-evaluation.md", "target": "type:concept", "relation": "has_type", "provenance": "frontmatter.type", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "date:2026-05-13", "relation": "has_date", "provenance": "frontmatter.date", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "index:🏷️ 사이드 프로젝트", "relation": "indexed_under", "provenance": "frontmatter.index", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "note:2026-05-13-rag-evaluation.md", "relation": "links_to", "provenance": "body.wikilink", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "status:completed", "relation": "has_status", "provenance": "frontmatter.status", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "tag:graph", "relation": "has_tag", "provenance": "frontmatter.tags", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "tag:obsidian", "relation": "has_tag", "provenance": "frontmatter.tags", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "topic:📚 209 knowledge graph", "relation": "has_topic", "provenance": "frontmatter.topics", "confidence": 1.0}, {"source": "note:knowledge-graph-design.md", "target": "type:project", "relation": "has_type", "provenance": "frontmatter.type", "confidence": 1.0}, {"source": "note:search-ux.md", "target": "date:2026-05-13", "relation": "has_date", "provenance": "frontmatter.date", "confidence": 1.0}, {"source": "note:search-ux.md", "target": "status:review", "relation": "has_status", "provenance": "frontmatter.status", "confidence": 1.0}, {"source": "note:search-ux.md", "target": "tag:search", "relation": "has_tag", "provenance": "frontmatter.tags", "confidence": 1.0}, {"source": "note:search-ux.md", "target": "topic:📚 210 hybrid search", "relation": "has_topic", "provenance": "frontmatter.topics", "confidence": 1.0}, {"source": "note:search-ux.md", "target": "type:guide", "relation": "has_type", "provenance": "frontmatter.type", "confidence": 1.0}], "seed_note_ids": ["note:2026-05-13-rag-evaluation.md", "note:knowledge-graph-design.md"], "hops": 2}}</script>
+<script>
+const payload = JSON.parse(document.getElementById('graph-data').textContent);
+const graph = payload.graph || payload;
+const nodes = graph.nodes || [];
+const edges = graph.edges || [];
+const svg = document.getElementById('graph');
+const width = svg.clientWidth || 900;
+const height = svg.clientHeight || 650;
+const cx = width / 2;
+const cy = height / 2;
+const radius = Math.max(160, Math.min(width, height) * 0.38);
+const byId = new Map();
+nodes.forEach((n, i) => {
+  const angle = (Math.PI * 2 * i) / Math.max(1, nodes.length);
+  n.x = cx + Math.cos(angle) * (n.seed ? radius * 0.45 : radius);
+  n.y = cy + Math.sin(angle) * (n.seed ? radius * 0.45 : radius);
+  byId.set(n.id, n);
+});
+function el(name, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+  svg.appendChild(e);
+  return e;
+}
+edges.forEach(edge => {
+  const s = byId.get(edge.source); const t = byId.get(edge.target);
+  if (!s || !t) return;
+  el('line', {x1:s.x, y1:s.y, x2:t.x, y2:t.y, class:'edge'});
+});
+nodes.forEach(node => {
+  const color = node.seed ? '#f59e0b' : node.kind === 'note' ? '#60a5fa' : '#34d399';
+  el('circle', {cx:node.x, cy:node.y, r:node.seed ? 13 : 9, fill:color, class:'node'});
+  el('text', {x:node.x + 12, y:node.y + 4, class:'label'}).textContent = node.label;
+});
+document.getElementById('nodes').innerHTML = nodes.map(n => `<div class="card"><strong>${n.label}</strong><br><small>${n.kind} · ${n.id}</small></div>`).join('');
+</script>
+</body>
+</html>

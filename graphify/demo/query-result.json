@@ -1,0 +1,324 @@
+{
+  "query": "RAG 평가",
+  "results": [
+    {
+      "note_id": "note:2026-05-13-rag-evaluation.md",
+      "title": "RAG 평가",
+      "path": "2026-05-13-rag-evaluation.md",
+      "summary": "- 🔹 RAG 평가 기준을 정리함\n- 🔸 그래프 기반 탐색과 연결됨",
+      "score": -2.71544659040648e-06
+    },
+    {
+      "note_id": "note:knowledge-graph-design.md",
+      "title": "Knowledge Graph 설계",
+      "path": "knowledge-graph-design.md",
+      "summary": "- 🔹 메타데이터 기반 그래프 설계임\n- 🔸 LLM과 임베딩을 제외함",
+      "score": -1.9671532846715327e-06
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "author:테디노트 teddynote 이경록",
+        "kind": "author",
+        "label": "테디노트 teddynote 이경록",
+        "seed": false
+      },
+      {
+        "id": "date:2026-05-13",
+        "kind": "date",
+        "label": "2026-05-13",
+        "seed": false
+      },
+      {
+        "id": "index:🏷️ 사이드 프로젝트",
+        "kind": "index",
+        "label": "🏷️ 사이드 프로젝트",
+        "seed": false
+      },
+      {
+        "id": "index:🏷️ 스터디",
+        "kind": "index",
+        "label": "🏷️ 스터디",
+        "seed": false
+      },
+      {
+        "id": "note:2026-05-13-rag-evaluation.md",
+        "kind": "note",
+        "label": "RAG 평가",
+        "seed": true
+      },
+      {
+        "id": "note:knowledge-graph-design.md",
+        "kind": "note",
+        "label": "Knowledge Graph 설계",
+        "seed": true
+      },
+      {
+        "id": "note:search-ux.md",
+        "kind": "note",
+        "label": "검색 UX",
+        "seed": false
+      },
+      {
+        "id": "status:completed",
+        "kind": "status",
+        "label": "completed",
+        "seed": false
+      },
+      {
+        "id": "status:inprogress",
+        "kind": "status",
+        "label": "inprogress",
+        "seed": false
+      },
+      {
+        "id": "status:review",
+        "kind": "status",
+        "label": "review",
+        "seed": false
+      },
+      {
+        "id": "tag:evaluation",
+        "kind": "tag",
+        "label": "evaluation",
+        "seed": false
+      },
+      {
+        "id": "tag:graph",
+        "kind": "tag",
+        "label": "graph",
+        "seed": false
+      },
+      {
+        "id": "tag:obsidian",
+        "kind": "tag",
+        "label": "Obsidian",
+        "seed": false
+      },
+      {
+        "id": "tag:rag",
+        "kind": "tag",
+        "label": "RAG",
+        "seed": false
+      },
+      {
+        "id": "tag:search",
+        "kind": "tag",
+        "label": "search",
+        "seed": false
+      },
+      {
+        "id": "topic:📚 209 knowledge graph",
+        "kind": "topic",
+        "label": "📚 209 Knowledge Graph",
+        "seed": false
+      },
+      {
+        "id": "topic:📚 210 hybrid search",
+        "kind": "topic",
+        "label": "📚 210 Hybrid Search",
+        "seed": false
+      },
+      {
+        "id": "topic:📚 211 evaluation",
+        "kind": "topic",
+        "label": "📚 211 Evaluation",
+        "seed": false
+      },
+      {
+        "id": "type:concept",
+        "kind": "type",
+        "label": "concept",
+        "seed": false
+      },
+      {
+        "id": "type:guide",
+        "kind": "type",
+        "label": "guide",
+        "seed": false
+      },
+      {
+        "id": "type:project",
+        "kind": "type",
+        "label": "project",
+        "seed": false
+      }
+    ],
+    "edges": [
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "author:테디노트 teddynote 이경록",
+        "relation": "authored_by",
+        "provenance": "frontmatter.author",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "date:2026-05-13",
+        "relation": "has_date",
+        "provenance": "frontmatter.date",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "index:🏷️ 스터디",
+        "relation": "indexed_under",
+        "provenance": "frontmatter.index",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "note:knowledge-graph-design.md",
+        "relation": "links_to",
+        "provenance": "body.wikilink",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "note:search-ux.md",
+        "relation": "links_to",
+        "provenance": "body.wikilink",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "status:inprogress",
+        "relation": "has_status",
+        "provenance": "frontmatter.status",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "tag:evaluation",
+        "relation": "has_tag",
+        "provenance": "frontmatter.tags",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "tag:rag",
+        "relation": "has_tag",
+        "provenance": "frontmatter.tags",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "topic:📚 209 knowledge graph",
+        "relation": "has_topic",
+        "provenance": "frontmatter.topics",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "topic:📚 211 evaluation",
+        "relation": "has_topic",
+        "provenance": "frontmatter.topics",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:2026-05-13-rag-evaluation.md",
+        "target": "type:concept",
+        "relation": "has_type",
+        "provenance": "frontmatter.type",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "date:2026-05-13",
+        "relation": "has_date",
+        "provenance": "frontmatter.date",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "index:🏷️ 사이드 프로젝트",
+        "relation": "indexed_under",
+        "provenance": "frontmatter.index",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "note:2026-05-13-rag-evaluation.md",
+        "relation": "links_to",
+        "provenance": "body.wikilink",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "status:completed",
+        "relation": "has_status",
+        "provenance": "frontmatter.status",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "tag:graph",
+        "relation": "has_tag",
+        "provenance": "frontmatter.tags",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "tag:obsidian",
+        "relation": "has_tag",
+        "provenance": "frontmatter.tags",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "topic:📚 209 knowledge graph",
+        "relation": "has_topic",
+        "provenance": "frontmatter.topics",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:knowledge-graph-design.md",
+        "target": "type:project",
+        "relation": "has_type",
+        "provenance": "frontmatter.type",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:search-ux.md",
+        "target": "date:2026-05-13",
+        "relation": "has_date",
+        "provenance": "frontmatter.date",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:search-ux.md",
+        "target": "status:review",
+        "relation": "has_status",
+        "provenance": "frontmatter.status",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:search-ux.md",
+        "target": "tag:search",
+        "relation": "has_tag",
+        "provenance": "frontmatter.tags",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:search-ux.md",
+        "target": "topic:📚 210 hybrid search",
+        "relation": "has_topic",
+        "provenance": "frontmatter.topics",
+        "confidence": 1.0
+      },
+      {
+        "source": "note:search-ux.md",
+        "target": "type:guide",
+        "relation": "has_type",
+        "provenance": "frontmatter.type",
+        "confidence": 1.0
+      }
+    ],
+    "seed_note_ids": [
+      "note:2026-05-13-rag-evaluation.md",
+      "note:knowledge-graph-design.md"
+    ],
+    "hops": 2
+  }
+}

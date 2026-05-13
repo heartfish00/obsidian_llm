@@ -1,0 +1,28 @@
+goal: Build a deterministic local Graphify-style Obsidian metadata graph search MVP.
+constraints:
+  - All new artifacts stay inside ./graphify.
+  - Use Python standard library only.
+  - Use SQLite with FTS5 for local search.
+  - Do not use LLMs, embeddings, vector databases, semantic inferred edges, realtime sync, or an Obsidian plugin.
+inputs:
+  - Obsidian Markdown files with YAML frontmatter.
+  - Body wikilinks.
+outputs:
+  - SQLite graph/search database.
+  - graph.json
+  - graph.html
+  - query-result.md
+  - query-result.json
+acceptance_criteria:
+  - Rebuilds a local SQLite DB from Markdown without network access.
+  - Extracts explicit metadata and wikilink edges with provenance.
+  - Query returns ranked FTS results.
+  - Default graph expansion is 1-hop and optional expansion supports 2-hop.
+  - Markdown and JSON context packs are generated.
+  - Tests pass using only the standard library.
+non_goals:
+  - Full body semantic analysis.
+  - Automatic semantic relation inference.
+  - Realtime sync.
+  - Full vault dashboard.
+  - Obsidian plugin SDK work.
