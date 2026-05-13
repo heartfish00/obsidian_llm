@@ -1,0 +1,4 @@
+interface:
+  display_name: "Query LLMWiki"
+  short_description: "Metadata-first Obsidian note search"
+  default_prompt: "Use $query-llmwiki to answer an Obsidian question by routing through frontmatter metadata, narrowing candidate notes, and citing note sources."

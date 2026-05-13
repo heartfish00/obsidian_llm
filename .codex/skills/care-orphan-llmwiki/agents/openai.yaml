@@ -1,0 +1,4 @@
+interface:
+  display_name: "Care Orphan LLMWiki"
+  short_description: "Zero-LLM orphan note linker for Obsidian"
+  default_prompt: "Use $care-orphan-llmwiki to scan an Obsidian vault, preview safe orphan-note repairs, and apply author or backlink fixes interactively."

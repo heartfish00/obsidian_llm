@@ -1,0 +1,27 @@
+# Obsidian App
+Obsidian.exe
+Obsidian.com
+Uninstall Obsidian.exe
+*.dll
+*.pak
+*.dat
+*.bin
+LICENSE.electron.txt
+LICENSES.chromium.html
+locales/
+resources/
+vk_swiftshader_icd.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pytest_cache/
+
+# Obsidian local sessions/cache
+.claude/sessions/
+.claude/settings.json
+.claude/settings.local.json
+
+# OMC local state
+.omc/
+.omx/
