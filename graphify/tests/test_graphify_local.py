@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -13,6 +14,7 @@ sys.path.insert(0, str(ROOT))
 from graphify_local.db import build_database, connect
 from graphify_local.export import write_graph_html, write_json, write_query_markdown
 from graphify_local.query import query_graph, search_notes
+from graphify_local.search_x import attach_x_search_context, load_dotenv_if_present, search_x_posts, split_handles
 
 
 class GraphifyLocalTests(unittest.TestCase):
@@ -70,6 +72,51 @@ class GraphifyLocalTests(unittest.TestCase):
     def test_empty_query_is_safe(self) -> None:
         payload = query_graph(self.conn, "", limit=2, hops=1)
         self.assertEqual(len(payload["results"]), 2)
+
+    def test_search_x_missing_key_is_structured_error(self) -> None:
+        result = search_x_posts("RAG 평가", api_key="")
+        self.assertEqual(result["status"], "missing_api_key")
+        self.assertEqual(result["provider"], "xai.responses.x_search")
+        self.assertEqual(result["citations"], [])
+
+    def test_search_x_context_adds_external_graph_nodes(self) -> None:
+        payload = query_graph(self.conn, "RAG 평가", limit=1, hops=1)
+        augmented = attach_x_search_context(
+            payload,
+            {
+                "enabled": True,
+                "status": "ok",
+                "provider": "xai.responses.x_search",
+                "model": "grok-4.3",
+                "summary": "X summary",
+                "citations": [{"url": "https://x.com/example/status/1", "title": "Example post"}],
+            },
+        )
+        self.assertIn("x_search", augmented)
+        kinds = {node["kind"] for node in augmented["graph"]["nodes"]}
+        self.assertIn("x_search", kinds)
+        self.assertIn("x_post", kinds)
+        self.assertTrue(
+            any(edge["provenance"] == "xai.responses.x_search" for edge in augmented["graph"]["edges"])
+        )
+
+    def test_split_handles_normalizes_commas_and_at_prefixes(self) -> None:
+        self.assertEqual(split_handles("@openai, xai ,, @karpathy"), ["openai", "xai", "karpathy"])
+
+    def test_dotenv_loader_sets_missing_xai_key(self) -> None:
+        previous_key = os.environ.pop("XAI_API_KEY", None)
+        previous_cwd = os.getcwd()
+        try:
+            os.chdir(self.tmp.name)
+            Path(".env").write_text("XAI_API_KEY=fake-test-key\n", encoding="utf-8")
+            load_dotenv_if_present()
+            self.assertEqual(os.environ.get("XAI_API_KEY"), "fake-test-key")
+        finally:
+            os.chdir(previous_cwd)
+            if previous_key is None:
+                os.environ.pop("XAI_API_KEY", None)
+            else:
+                os.environ["XAI_API_KEY"] = previous_key
 
 
 if __name__ == "__main__":

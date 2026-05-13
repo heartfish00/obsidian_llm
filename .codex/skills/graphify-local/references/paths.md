@@ -5,4 +5,7 @@
 - Graphify CLI package: `graphify/graphify_local`
 - Default full DB: `graphify/output/full/vault_graph.sqlite`
 - Query outputs: `graphify/output/<query-slug>/`
+- Search X API key env var: `XAI_API_KEY`
+- Search X local env file: `.env` at workspace root (gitignored)
+- Optional Search X model env var: `SEARCH_X_MODEL`
 - Generated DB/output are gitignored: `*.sqlite`, `*.sqlite3`, `graphify/output/`, `graphify/demo/*.sqlite`

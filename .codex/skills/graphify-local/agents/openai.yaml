@@ -1,4 +1,4 @@
 interface:
   display_name: "Graphify Local"
-  short_description: "Build and query local Obsidian graph DB"
-  default_prompt: "Use $graphify-local to rebuild the local Obsidian graph database or query it for a graph.html path."
+  short_description: "Build/query Obsidian graph DB with optional Search X"
+  default_prompt: "Use $graphify-local to rebuild the local Obsidian graph database, query it for a graph.html path, or add --search-x when X/Twitter realtime context is requested."

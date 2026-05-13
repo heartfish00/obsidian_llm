@@ -26,6 +26,27 @@ def write_query_markdown(path: Path, payload: dict[str, Any]) -> None:
                 f"\t- Summary: {row['summary'] or '(none)' }",
             ]
         )
+    x_search = payload.get("x_search")
+    if x_search:
+        lines.extend(
+            [
+                "",
+                "## Search X",
+                f"- Status: `{x_search.get('status', 'unknown')}`",
+                f"- Provider: `{x_search.get('provider', 'xai.responses.x_search')}`",
+                f"- Model: `{x_search.get('model', '')}`",
+            ]
+        )
+        if x_search.get("error"):
+            lines.append(f"- Error: {x_search['error']}")
+        if x_search.get("summary"):
+            lines.extend(["", x_search["summary"]])
+        citations = x_search.get("citations") or []
+        if citations:
+            lines.extend(["", "### X Citations"])
+            for idx, citation in enumerate(citations, 1):
+                title = citation.get("title") or citation.get("url")
+                lines.append(f"{idx}. [{title}]({citation.get('url')})")
     lines.extend(["", "## Graph", f"- Nodes: {len(payload['graph']['nodes'])}", f"- Edges: {len(payload['graph']['edges'])}"])
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -51,7 +72,7 @@ aside {{ overflow: auto; padding: 16px; border-left: 1px solid #374151; backgrou
 </style>
 </head>
 <body>
-<header><strong>Graphify Local</strong> — metadata/wikilink graph</header>
+<header><strong>Graphify Local</strong> — metadata/wikilink graph<span id="x-status"></span></header>
 <div id="wrap"><svg id="graph"></svg><aside><h2>Nodes</h2><div id="nodes"></div></aside></div>
 <script id="graph-data" type="application/json">{escaped}</script>
 <script>
@@ -84,11 +105,14 @@ edges.forEach(edge => {{
   el('line', {{x1:s.x, y1:s.y, x2:t.x, y2:t.y, class:'edge'}});
 }});
 nodes.forEach(node => {{
-  const color = node.seed ? '#f59e0b' : node.kind === 'note' ? '#60a5fa' : '#34d399';
+  const color = node.seed ? '#f59e0b' : node.kind === 'note' ? '#60a5fa' : node.kind === 'x_post' ? '#f472b6' : node.kind === 'x_search' ? '#a78bfa' : '#34d399';
   el('circle', {{cx:node.x, cy:node.y, r:node.seed ? 13 : 9, fill:color, class:'node'}});
   el('text', {{x:node.x + 12, y:node.y + 4, class:'label'}}).textContent = node.label;
 }});
-document.getElementById('nodes').innerHTML = nodes.map(n => `<div class="card"><strong>${{n.label}}</strong><br><small>${{n.kind}} · ${{n.id}}</small></div>`).join('');
+document.getElementById('nodes').innerHTML = nodes.map(n => `<div class="card"><strong>${{n.label}}</strong><br><small>${{n.kind}} · ${{n.id}}</small>${{n.url ? `<br><a href="${{n.url}}">${{n.url}}</a>` : ''}}</div>`).join('');
+if (payload.x_search) {{
+  document.getElementById('x-status').textContent = ` · Search X: ${{payload.x_search.status}}`;
+}}
 </script>
 </body>
 </html>

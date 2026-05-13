@@ -6,6 +6,7 @@ from pathlib import Path
 from .db import build_database, connect
 from .export import write_graph_html, write_json, write_query_markdown
 from .query import query_graph
+from .search_x import attach_x_search_context, search_x_posts, split_handles
 
 
 def cmd_build(args: argparse.Namespace) -> None:
@@ -21,6 +22,17 @@ def cmd_query(args: argparse.Namespace) -> None:
         payload = query_graph(conn, args.query, limit=args.limit, hops=args.hops)
     finally:
         conn.close()
+    if args.search_x:
+        x_payload = search_x_posts(
+            args.query,
+            model=args.x_model,
+            allowed_handles=split_handles(args.x_allowed_handles),
+            excluded_handles=split_handles(args.x_excluded_handles),
+            from_date=args.x_from_date,
+            to_date=args.x_to_date,
+            timeout=args.x_timeout,
+        )
+        payload = attach_x_search_context(payload, x_payload)
     write_json(out_dir / "query-result.json", payload)
     write_json(out_dir / "graph.json", payload["graph"])
     write_query_markdown(out_dir / "query-result.md", payload)
@@ -49,6 +61,13 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument("--out-dir", required=True)
     query.add_argument("--limit", type=int, default=10)
     query.add_argument("--hops", type=int, choices=[1, 2], default=1)
+    query.add_argument("--search-x", action="store_true", help="Augment local graph results with xAI Responses API x_search.")
+    query.add_argument("--x-model", default=None, help="xAI model for Search X; defaults to SEARCH_X_MODEL or grok-4.3.")
+    query.add_argument("--x-allowed-handles", default=None, help="Comma-separated X handles to include; max 10.")
+    query.add_argument("--x-excluded-handles", default=None, help="Comma-separated X handles to exclude; max 10.")
+    query.add_argument("--x-from-date", default=None, help="Search X start date in YYYY-MM-DD format.")
+    query.add_argument("--x-to-date", default=None, help="Search X end date in YYYY-MM-DD format.")
+    query.add_argument("--x-timeout", type=int, default=60, help="Search X HTTP timeout in seconds.")
     query.set_defaults(func=cmd_query)
     return parser
 
