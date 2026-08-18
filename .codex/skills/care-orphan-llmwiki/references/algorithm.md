@@ -24,11 +24,17 @@
 - Use `ruamel.yaml` with quote preservation; do not replace it with PyYAML.
 - Skip malformed YAML and continue.
 - Modify only files that need changes.
-- Preserve existing body text; only append a footer block at the end.
+- Preserve existing body text. Shared-block footers are merge-only: collapse duplicated `🔗 **Shared Keywords/Authors**` blocks into a single one, union links with dedup (normalized link keys), and drop self-referencing links. Repeated runs must be idempotent — a second pass proposes zero changes.
 - Sync frontmatter `core_shared_keywords` to the computed title-backed keyword list.
 - Normalize legacy `authur` into `author` without dropping existing non-link author values.
 - Prefer `--mode preview` or a narrow `--path-glob` before broad runs.
 - Keep preview output bounded with `--preview-link-limit` and `--preview-error-limit` on large vaults.
+
+## Consolidation mode (`--consolidate-only`)
+
+- Proposes only the merging of stacked duplicate shared blocks; computes no new backlinks and changes no metadata.
+- Frontmatter is written back verbatim (no ruamel round-trip) so vault-wide cleanup diffs stay minimal.
+- Block detection is format-tolerant (emoji variation selector, bold-marker drift, spacing, letter case) but only classifies a line as a block when what follows the label is empty or a wikilink, so prose that merely mentions "shared keywords" is never rewritten.
 
 ## Phase mapping
 

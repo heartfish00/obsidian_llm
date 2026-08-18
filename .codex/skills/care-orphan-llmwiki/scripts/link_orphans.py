@@ -29,6 +29,24 @@ WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
 URL_RE = re.compile(r"https?://\S+")
 SHARED_BLOCK_LABEL = "🔗 **Shared Keywords:**"
 SHARED_AUTHOR_BLOCK_LABEL = "🔗 **Shared Authors:**"
+SHARED_BLOCK_KIND_KEYWORDS = "keywords"
+SHARED_BLOCK_KIND_AUTHORS = "authors"
+SHARED_BLOCK_KIND_LABELS = {
+    SHARED_BLOCK_KIND_KEYWORDS: SHARED_BLOCK_LABEL,
+    SHARED_BLOCK_KIND_AUTHORS: SHARED_AUTHOR_BLOCK_LABEL,
+}
+# Tolerant matcher for shared-block lines: optional 🔗 (+ variation selector),
+# optional/misplaced bold markers, flexible spacing, case-insensitive. Whatever
+# follows the label must be empty or start with a wikilink, so prose that merely
+# mentions "shared keywords" is never mistaken for a block.
+SHARED_BLOCK_LINE_RE = re.compile(
+    r"^\s*(?:\U0001F517️?\s*)?\*{0,2}\s*shared\s+(keywords|authors)\s*[:：*]{0,4}\s*(.*)$",
+    re.IGNORECASE,
+)
+# Lenient fallback for links WIKILINK_RE cannot parse, e.g. targets whose own
+# name starts with "[" ("[연계세미나] ...") which serialize as [[[name]]].
+# The lazy opener keeps exactly two "[" so the target's own leading "[" survives.
+FALLBACK_BLOCK_LINK_RE = re.compile(r"\[{2,}?(.*?)\]{2,}")
 CORE_SHARED_KEYWORDS_FIELD = "core_shared_keywords"
 TITLE_TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣]+")
 CORE_SHARED_KEYWORD_STOPWORDS = frozenset({
@@ -155,6 +173,8 @@ class NoteProposal:
     backlink_targets: list[BacklinkTarget]
     core_shared_keywords_changed: bool = False
     author_field_normalization_needed: bool = False
+    needs_block_consolidation: bool = False
+    consolidation_only: bool = False
 
     @property
     def keyword_backlink_targets(self) -> list[BacklinkTarget]:
@@ -177,6 +197,7 @@ class NoteProposal:
             or self.backlink_targets
             or self.core_shared_keywords_changed
             or self.author_field_normalization_needed
+            or self.needs_block_consolidation
         )
 
 
@@ -192,6 +213,11 @@ def parse_args() -> argparse.Namespace:
         help="interactive: prompt per note, preview: no writes, apply: write without prompts",
     )
     parser.add_argument("--yes", action="store_true", help="Alias for --mode apply")
+    parser.add_argument(
+        "--consolidate-only",
+        action="store_true",
+        help="Only merge existing duplicate shared blocks; no new backlinks or metadata changes",
+    )
     parser.add_argument("--limit", type=int, help="Only process the first N parsed markdown notes")
     parser.add_argument(
         "--path-glob",
@@ -668,9 +694,30 @@ def propose_changes(
             backlink_targets=backlink_targets,
             core_shared_keywords_changed=core_shared_keywords_changed(note),
             author_field_normalization_needed=author_field_normalization_needed(note),
+            needs_block_consolidation=body_needs_consolidation(note.body),
         )
         if proposal.has_changes:
             proposals.append(proposal)
+    return proposals
+
+
+def build_consolidation_proposals(notes: list[ParsedNote]) -> list[NoteProposal]:
+    """Consolidation-only proposals: merge stacked shared blocks, change nothing else."""
+    proposals: list[NoteProposal] = []
+    for note in notes:
+        if note.parse_error:
+            continue
+        if not body_needs_consolidation(note.body):
+            continue
+        proposals.append(
+            NoteProposal(
+                note=note,
+                author_candidate=None,
+                backlink_targets=[],
+                needs_block_consolidation=True,
+                consolidation_only=True,
+            )
+        )
     return proposals
 
 
@@ -701,9 +748,60 @@ def format_link_preview(targets: list[BacklinkTarget], limit: int) -> str:
     return links
 
 
-def format_shared_block(label: str, targets: list[BacklinkTarget], newline: str) -> str:
-    links = ", ".join(target.note.wikilink for target in targets)
-    return f"---{newline}{label} {links}{newline}"
+def _parse_shared_block_line(line: str) -> tuple[str, str] | None:
+    """Classify a body line as a shared-block line.
+
+    Returns (kind, remainder) where remainder holds everything after the label,
+    or None when the line is not a shared block. Tolerates label drift (emoji
+    variation selector, missing/misplaced bold markers, spacing, letter case),
+    but requires the remainder to be empty or start with a wikilink so prose
+    that merely mentions "shared keywords" is never treated as a block.
+    """
+    match = SHARED_BLOCK_LINE_RE.match(line)
+    if match is None:
+        return None
+    remainder = match.group(2).strip()
+    if remainder and not remainder.startswith("[["):
+        return None
+    return match.group(1).lower(), remainder
+
+
+def _shared_block_kind(line: str) -> str | None:
+    parsed = _parse_shared_block_line(line)
+    return parsed[0] if parsed else None
+
+
+def shared_block_line_count(body: str, kind: str) -> int:
+    """Number of body lines that are shared-block entries for the given kind."""
+    return sum(1 for line in body.splitlines() if _shared_block_kind(line) == kind)
+
+
+def shared_block_links(body: str, kind: str) -> list[str]:
+    """Wikilink targets found on every shared-block line for kind, in order.
+
+    Falls back to a lenient bracket matcher when WIKILINK_RE cannot parse a
+    line's links (e.g. targets whose own name starts with "[", serializing as
+    [[[name]]]), so those blocks are still merged instead of silently skipped.
+    """
+    links: list[str] = []
+    for line in body.splitlines():
+        parsed = _parse_shared_block_line(line)
+        if parsed is None or parsed[0] != kind:
+            continue
+        matches = list(WIKILINK_RE.finditer(parsed[1]))
+        if matches:
+            links.extend(match.group(1) for match in matches)
+        else:
+            links.extend(match.group(1) for match in FALLBACK_BLOCK_LINK_RE.finditer(parsed[1]))
+    return links
+
+
+def body_needs_consolidation(body: str) -> bool:
+    """True when the body has stacked duplicate shared-block lines that should be merged."""
+    return (
+        shared_block_line_count(body, SHARED_BLOCK_KIND_KEYWORDS) >= 2
+        or shared_block_line_count(body, SHARED_BLOCK_KIND_AUTHORS) >= 2
+    )
 
 
 def serialize_frontmatter(metadata: Any, newline: str) -> str:
@@ -715,11 +813,66 @@ def serialize_frontmatter(metadata: Any, newline: str) -> str:
     return dumped
 
 
-def merge_body(body: str, append_block: str, newline: str) -> str:
-    trimmed = body.rstrip("\r\n")
-    if not trimmed:
-        return append_block
-    return f"{trimmed}{newline}{newline}{append_block}"
+def _bare_wikilink_target(link: str) -> str:
+    """Strip [[...]] wrapping so existing and new links compare on equal footing."""
+    text = link.strip()
+    match = re.match(r"^\[\[(.+)\]\]$", text)
+    return match.group(1).strip() if match else text
+
+
+def strip_shared_blocks(body: str, kind: str, newline: str) -> str:
+    """Remove every shared-block line for kind plus its immediately preceding '---' separator."""
+    kept: list[str] = []
+    for line in body.splitlines():
+        if _shared_block_kind(line) == kind:
+            if kept and kept[-1].strip() == "---":
+                kept.pop()
+            continue
+        kept.append(line)
+    return newline.join(kept)
+
+
+def merge_shared_block(
+    body: str,
+    kind: str,
+    new_links: list[str],
+    newline: str,
+    self_keys: set[str] | None = None,
+) -> str:
+    """Collapse every shared-block line for kind into one, unioned with new_links.
+
+    Idempotent: a body that already has a single up-to-date block is returned
+    unchanged on a second pass. When there are no links at all the block is
+    removed entirely instead of being re-added. Links that point back at the
+    note itself (self_keys) are dropped, and deduplication compares normalized
+    link keys so "[[Note]]" and "Note" are recognized as the same target.
+    Returns the body untouched when there is no existing block of this kind
+    and nothing new to add.
+    """
+    existing_links = shared_block_links(body, kind)
+    if shared_block_line_count(body, kind) == 0 and not new_links:
+        return body
+    candidates = [_bare_wikilink_target(link) for link in existing_links]
+    candidates += [_bare_wikilink_target(link) for link in new_links]
+    merged_links: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        key = normalize_link_key(candidate)
+        if key in seen or (self_keys and key in self_keys):
+            continue
+        seen.add(key)
+        merged_links.append(candidate)
+    cleaned = strip_shared_blocks(body, kind, newline).rstrip("\r\n")
+    if not merged_links:
+        return (cleaned + newline) if cleaned else ""
+    label = SHARED_BLOCK_KIND_LABELS[kind]
+    joined_links = ", ".join(f"[[{link}]]" for link in merged_links)
+    block = f"---{newline}{label} {joined_links}{newline}"
+    if not cleaned:
+        return block
+    return f"{cleaned}{newline}{newline}{block}"
 
 
 def append_unique_items(existing_items: list[str], new_items: list[str]) -> list[str]:
@@ -771,8 +924,25 @@ def update_core_shared_keywords_metadata(metadata: dict[str, Any], core_shared_k
         del metadata[CORE_SHARED_KEYWORDS_FIELD]
 
 
+def render_consolidation_text(proposal: NoteProposal) -> str:
+    """Consolidation-only render: verbatim frontmatter + merged body.
+
+    The frontmatter text is written back byte-for-byte (no ruamel round-trip)
+    so a vault-wide duplicate-block cleanup only touches the shared blocks.
+    """
+    note = proposal.note
+    newline = note.newline
+    body = merge_shared_block(note.body, SHARED_BLOCK_KIND_KEYWORDS, [], newline, self_keys=note.link_keys)
+    body = merge_shared_block(body, SHARED_BLOCK_KIND_AUTHORS, [], newline, self_keys=note.link_keys)
+    if note.frontmatter_text is None:
+        return body
+    return f"---{newline}{note.frontmatter_text}{newline}---{newline}{body.lstrip(chr(13) + chr(10))}"
+
+
 def render_updated_text(proposal: NoteProposal) -> str:
     note = proposal.note
+    if proposal.consolidation_only:
+        return render_consolidation_text(proposal)
     metadata = note.metadata
     if metadata is None:
         metadata = {}
@@ -782,20 +952,27 @@ def render_updated_text(proposal: NoteProposal) -> str:
     if proposal.core_shared_keywords_changed:
         update_core_shared_keywords_metadata(metadata, note.core_shared_keywords)
     body = note.body
-    if proposal.keyword_backlink_targets:
-        body = merge_body(
+    newline = note.newline
+    # Idempotent shared-block handling: merge any existing block(s) with the new
+    # links so repeated runs never stack duplicate 🔗 Shared Keywords/Authors blocks.
+    if proposal.keyword_backlink_targets or proposal.needs_block_consolidation:
+        body = merge_shared_block(
             body,
-            format_shared_block(SHARED_BLOCK_LABEL, proposal.keyword_backlink_targets, note.newline),
-            note.newline,
+            SHARED_BLOCK_KIND_KEYWORDS,
+            [target.note.wikilink for target in proposal.keyword_backlink_targets],
+            newline,
+            self_keys=note.link_keys,
         )
-    if proposal.body_author_backlink_targets:
-        body = merge_body(
+    if proposal.body_author_backlink_targets or proposal.needs_block_consolidation:
+        body = merge_shared_block(
             body,
-            format_shared_block(SHARED_AUTHOR_BLOCK_LABEL, proposal.body_author_backlink_targets, note.newline),
-            note.newline,
+            SHARED_BLOCK_KIND_AUTHORS,
+            [target.note.wikilink for target in proposal.body_author_backlink_targets],
+            newline,
+            self_keys=note.link_keys,
         )
-    frontmatter = serialize_frontmatter(metadata, note.newline)
-    return f"---{note.newline}{frontmatter}{note.newline}---{note.newline}{body.lstrip(chr(13) + chr(10))}"
+    frontmatter = serialize_frontmatter(metadata, newline)
+    return f"---{newline}{frontmatter}{newline}---{newline}{body.lstrip(chr(13) + chr(10))}"
 
 
 def print_summary(notes: list[ParsedNote], proposals: list[NoteProposal], preview_error_limit: int) -> None:
@@ -833,6 +1010,8 @@ def preview_proposals(proposals: list[NoteProposal], preview_link_limit: int) ->
             print(f"  {CORE_SHARED_KEYWORDS_FIELD}: {', '.join(note.core_shared_keywords) or '<empty>'}")
         if proposal.backlink_targets:
             print(f"  backlinks: {format_link_preview(proposal.backlink_targets, preview_link_limit)}")
+        if proposal.needs_block_consolidation:
+            print("  shared blocks: merge duplicates into one")
 
 
 def prompt_choice(prompt: str) -> str:
@@ -858,6 +1037,8 @@ def apply_proposals(proposals: list[NoteProposal], mode: str, preview_link_limit
                 print(f"  {CORE_SHARED_KEYWORDS_FIELD} -> {', '.join(note.core_shared_keywords) or '<empty>'}")
             if proposal.backlink_targets:
                 print("  backlinks -> " + format_link_preview(proposal.backlink_targets, preview_link_limit))
+            if proposal.needs_block_consolidation:
+                print("  shared blocks -> merge duplicates into one")
             choice = prompt_choice("Apply this change? [y]es/[n]o/[a]ll/[q]uit: ")
             if choice == "a":
                 apply_rest = True
@@ -976,7 +1157,10 @@ def main() -> int:
 
     ref_authors = load_author_refs(args.author_ref, vault_root) if args.author_ref else {}
 
-    if args.target_path_glob:
+    if args.consolidate_only:
+        notes = collect_notes(vault_root, args)
+        proposals = build_consolidation_proposals(notes)
+    elif args.target_path_glob:
         notes, target_notes = collect_notes_for_target_scope(vault_root, args)
         keyword_index, author_index = build_indexes(notes)
         proposals = propose_changes(
