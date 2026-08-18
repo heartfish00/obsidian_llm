@@ -14,7 +14,7 @@ Use this skill to repair orphan notes in an Obsidian vault with deterministic lo
 3. The script **hardcodes** its processing scope to root-level `.md` files and `PARA_*` subdirectories only (auto-detected). Non-PARA folders (`Chats/`, `Clippings/`, `00. Inbox/`, etc.) are always skipped. The file `그루,구루 대분류 AI.md` is also excluded. Safe to run on the full vault without `--path-glob`.
 4. Use `--limit`, `--path-glob`, `--target-path-glob`, or `--exclude-dir` to further narrow scope on top of the hardcoded baseline.
 5. Preserve existing YAML structure with `ruamel.yaml`; normalize legacy `authur` input into `author`, keep `core_shared_keywords` in sync, and only derive fallback `author` values from a deterministic domain.
-6. Never insert backlinks into the middle of the body. Only append a bottom block in this format:
+6. Never insert backlinks into the middle of the body. Shared-block footers are merge-only and idempotent: when a `🔗 **Shared Keywords:**` / `🔗 **Shared Authors:**` block already exists, merge the new links into that single block (deduplicate, keep order, drop self-links) instead of appending another one. Only add a fresh bottom block when none exists:
 
 ```markdown
 ---
@@ -34,7 +34,8 @@ Use this skill to repair orphan notes in an Obsidian vault with deterministic lo
 - Find notes that share one or more `core_shared_keywords` or the same `author/authur` value and are not already linked in the body.
 - Write `core_shared_keywords` back into frontmatter and normalize output to the `author` field.
 - Skip malformed YAML with logged errors instead of aborting the run.
-- Keep modifications minimal: frontmatter `core_shared_keywords` / `author`, plus append-only backlink blocks.
+- Keep modifications minimal: frontmatter `core_shared_keywords` / `author`, plus merge-only shared blocks. Repeated runs are idempotent — existing `🔗 **Shared Keywords/Authors**` blocks are merged into (never stacked under), links are deduplicated, and self-referencing links are dropped.
+- `--consolidate-only`: merge already-duplicated shared blocks across the vault without computing new backlinks or touching metadata. Frontmatter is preserved byte-for-byte, so this is safe as a bulk cleanup pass.
 
 ## Key commands
 
@@ -45,6 +46,8 @@ python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --mode ap
 python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --path-glob "PARA_3Resources/**/*.md"
 python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --mode preview --target-path-glob "PARA_1Projects/*" --preview-link-limit 10
 python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --mode preview --target-path-glob "PARA_1Projects/*" --author-ref "PARA_3Resources/2024/그루,구루 대분류 AI.md"
+python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --consolidate-only --mode preview
+python scripts/link_orphans.py --vault "D:\Sales Planning\obsidian\my" --consolidate-only --mode apply --yes
 ```
 
 ## Resources

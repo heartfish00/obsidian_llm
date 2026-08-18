@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -12,11 +13,93 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "link_orphans.py"
 
 
+def load_script_module():
+    spec = importlib.util.spec_from_file_location("link_orphans", SCRIPT_PATH)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["link_orphans"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def write_note(vault_root: Path, relative_path: str, content: str) -> Path:
     path = vault_root / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(content).lstrip("\n"), encoding="utf-8")
     return path
+
+
+class MergeSharedBlockTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mod = load_script_module()
+
+    def test_stacked_duplicate_blocks_collapse_into_one(self) -> None:
+        body = (
+            "note text\n"
+            "\n"
+            "---\n"
+            "🔗 **Shared Keywords:** [[a]]\n"
+            "\n"
+            "---\n"
+            "🔗 **Shared Keywords:** [[b]], [[a]]\n"
+        )
+        merged = self.mod.merge_shared_block(body, "keywords", [], "\n")
+        self.assertEqual(
+            merged,
+            "note text\n\n---\n🔗 **Shared Keywords:** [[a]], [[b]]\n",
+        )
+
+    def test_variant_label_formats_are_detected_and_merged(self) -> None:
+        body = (
+            "text\n"
+            "\n"
+            "---\n"
+            "🔗️ **Shared Keywords:** [[a]]\n"
+            "\n"
+            "---\n"
+            "**shared keywords** [[b]]\n"
+        )
+        merged = self.mod.merge_shared_block(body, "keywords", [], "\n")
+        self.assertEqual(merged.count("**Shared Keywords:**"), 1)
+        self.assertIn("[[a]]", merged)
+        self.assertIn("[[b]]", merged)
+
+    def test_self_links_are_dropped(self) -> None:
+        body = "text\n\n---\n🔗 **Shared Keywords:** [[self note]], [[other]]\n"
+        merged = self.mod.merge_shared_block(body, "keywords", [], "\n", self_keys={"self note"})
+        self.assertNotIn("[[self note]]", merged)
+        self.assertIn("[[other]]", merged)
+
+    def test_bare_and_bracketed_links_deduplicate(self) -> None:
+        # Existing links are read bare from block lines while new links arrive as
+        # [[x]] wikilinks; both must dedupe onto a single [[x]] entry.
+        body = "text\n\n---\n🔗 **Shared Keywords:** [[x]]\n"
+        merged = self.mod.merge_shared_block(body, "keywords", ["[[x]]", "[[y]]"], "\n")
+        self.assertEqual(merged, "text\n\n---\n🔗 **Shared Keywords:** [[x]], [[y]]\n")
+
+    def test_body_without_blocks_is_untouched(self) -> None:
+        body = "plain body\nwith text\n"
+        self.assertEqual(self.mod.merge_shared_block(body, "keywords", [], "\n"), body)
+
+    def test_bracket_named_targets_still_merge(self) -> None:
+        # Targets whose own name starts with "[" serialize as [[[name]]], which
+        # WIKILINK_RE cannot parse; the fallback matcher must still merge them.
+        block_line = "🔗 **Shared Keywords:** [[[연계세미나] 노트]]\n"
+        body = "text\n\n---\n" + block_line + "\n---\n" + block_line
+        merged = self.mod.merge_shared_block(body, "keywords", [], "\n")
+        self.assertEqual(merged.count("Shared Keywords"), 1)
+        self.assertIn("[[[연계세미나] 노트]]", merged)
+
+    def test_prose_mention_is_not_a_block(self) -> None:
+        body = (
+            "- Find backlink candidates by shared keywords and existing-body-link exclusion.\n"
+            "\n"
+            "---\n"
+            "🔗 **Shared Keywords:** [[a]]\n"
+        )
+        merged = self.mod.merge_shared_block(body, "keywords", [], "\n")
+        self.assertIn("by shared keywords and", merged)
+        self.assertEqual(merged.count("**Shared Keywords:** [[a]]"), 1)
 
 
 class LinkOrphansCliTests(unittest.TestCase):
@@ -575,6 +658,71 @@ class LinkOrphansCliTests(unittest.TestCase):
             self.assertTrue(len(report["proposals"]) >= 1)
             proposal = report["proposals"][0]
             self.assertEqual(proposal["author_candidate"], "모두의 AI 케인")
+
+
+    def test_cli_apply_twice_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            vault_root = Path(temp_dir)
+            write_note(
+                vault_root,
+                "PARA_1Projects/AI Target.md",
+                """
+                ---
+                tags:
+                  - AI
+                ---
+                target body
+                """,
+            )
+            write_note(
+                vault_root,
+                "PARA_3Resources/AI Candidate.md",
+                """
+                ---
+                tags:
+                  - AI
+                ---
+                candidate body
+                """,
+            )
+
+            first = self.run_cli(vault_root, "--mode", "apply", "--yes")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertIn("applied: 2", first.stdout)
+
+            second = self.run_cli(vault_root, "--mode", "apply", "--yes")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertIn("Candidate notes with changes: 0", second.stdout)
+
+    def test_cli_consolidate_only_merges_and_preserves_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            vault_root = Path(temp_dir)
+            frontmatter = "tags:\n  - AI\ncore_shared_keywords:\n  - ai\n"
+            content = (
+                "---\n"
+                + frontmatter
+                + "---\n"
+                + "body\n"
+                + "\n"
+                + "---\n"
+                + "🔗 **Shared Keywords:** [[first note]]\n"
+                + "\n"
+                + "---\n"
+                + "🔗 **Shared Keywords:** [[second note]]\n"
+            )
+            path = write_note(vault_root, "PARA_1Projects/Dup Note.md", content)
+
+            result = self.run_cli(vault_root, "--consolidate-only", "--mode", "apply", "--yes")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            updated = path.read_text(encoding="utf-8")
+            self.assertTrue(updated.startswith("---\n" + frontmatter + "---\n"), updated)
+            self.assertEqual(updated.count("**Shared Keywords:**"), 1)
+            self.assertIn("[[first note]]", updated)
+            self.assertIn("[[second note]]", updated)
+
+            second = self.run_cli(vault_root, "--consolidate-only", "--mode", "apply", "--yes")
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertIn("Candidate notes with changes: 0", second.stdout)
 
 
 if __name__ == "__main__":
